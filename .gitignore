@@ -1,0 +1,16 @@
+# Ambiente virtual
+.venv/
+
+# Arquivos Python temporários
+__pycache__/
+*.py[cod]
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Credenciais e configurações locais
+.env
+
+# Dados locais
+data/raw/
+data/processed/
