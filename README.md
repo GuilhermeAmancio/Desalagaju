@@ -1,4 +1,6 @@
-# Desalagaju — Previsão de Alagamentos em Aracaju
+# Desalagaju
+
+Plataforma de monitoramento, análise e previsão de alagamentos urbanos em Aracaju (SE), integrando dados pluviométricos do CEMADEN, tábuas de maré e registros históricos de ocorrências.
 
 ## 1. Sobre o projeto
 
@@ -18,25 +20,25 @@ O projeto utiliza dados de precipitação do Centro Nacional de Monitoramento e 
 - Avaliar os resultados utilizando métricas estatísticas.
 - Documentar as limitações dos dados e dos modelos.
 
-## 2. Estrutura do repositório
-
-A estrutura atual do projeto é:
+## 2. Estrutura do projeto
 
 ```text
-Desalagaju/
+desalagaju/
+│
 ├── data/
-│   ├── raw/
-│   │   └── cemaden/
-│   │       ├── 2025/
-│   │       └── 2026/
-│   └── processed/
-├── notebooks/
-├── src/
-│   └── engenharia_atributos.py
-├── tests/
-├── .gitignore
-├── README.md
-└── requirements.txt
+│   ├── raw/                 # Dados brutos (CEMADEN, Maré, Planilhas de Notícias)
+│   └── processed/           # Dados limpos e integrados (CSV consolidados)
+│
+├── src/                     # Scripts de processamento, integração e modelagem
+│   ├── engenharia_atributos.py  # Processamento de chuvas e janelas móveis (CEMADEN)
+│   ├── mare.py                  # Processamento dos dados de maré
+│   ├── integrar_base.py         # Cruzamento de dados ambientais com ocorrências reais
+│   ├── arvore_decisao.py        # Modelo de Árvore de Decisão
+│   ├── regressao_logistica.py   # Modelo de Regressão Logística
+│   └── svm.py                   # Modelo de Support Vector Machine (SVM)
+│
+├── requirements.txt         # Dependências do projeto
+└── README.md                # Documentação da plataforma
 ```
 
 ### Descrição dos diretórios e arquivos
@@ -45,10 +47,13 @@ Desalagaju/
 |---|---|
 | `data/raw/` | Armazenar os dados originais. |
 | `data/raw/cemaden/` | Armazenar os arquivos mensais de precipitação do CEMADEN. |
-| `data/processed/` | Armazenar os dados gerados pelo processamento. |
+| `data/raw/alagamentos/` | Armazenar o arquivo Excel com registros de ocorrências (`Noticias Alagamentos Aju.xlsx`). |
+| `data/processed/` | Armazenar os dados gerados pelo processamento (`base_ambiental.csv`, `chuva_acumulada_3h.csv`, `base_integrada.csv`). |
 | `notebooks/` | Desenvolver análises exploratórias e experimentos. |
 | `src/` | Armazenar os scripts do projeto. |
 | `src/engenharia_atributos.py` | Processar os dados de precipitação e calcular atributos de chuva acumulada. |
+| `src/mare.py` | Processar e integrar os dados de maré. |
+| `src/integrar_base.py` | Cruzar dados ambientais com os rótulos de alagamento efetivo por data. |
 | `tests/` | Organizar testes automatizados, à medida que forem implementados. |
 | `.gitignore` | Definir arquivos e diretórios que não devem ser versionados. |
 | `requirements.txt` | Registrar as dependências Python. |
@@ -86,45 +91,45 @@ A interpretação de `valorMedida`, incluindo sua semântica temporal e a forma 
 
 ### 3.2. Dados de maré
 
-Os dados de maré serão utilizados para investigar a possível associação entre o nível da água e a ocorrência de alagamentos.
+Os dados de maré foram integrados na base ambiental (`base_ambiental.csv`) para investigar a possível associação entre o nível da água e a ocorrência de alagamentos.
 
-A fonte, a frequência das medições, o período de cobertura e os procedimentos de integração deverão ser documentados quando essa etapa for concluída.
+### 3.3. Registros de alagamentos e filtragem de ocorrências efetivas
 
-### 3.3. Registros de alagamentos
+Os registros de alagamentos estão contidos no arquivo `Noticias Alagamentos Aju.xlsx` (composto por colunas como `Data`, `Manchete`, `Tipo / ocorrência`, `Fonte` e `Link`).
 
-Os registros de alagamentos serão utilizados para construir a variável-alvo dos modelos de classificação.
+Para garantir que a variável-alvo represente estritamente incidentes reais de impacto, o script de integração aplica uma lista rigorosa de categorias efetivas (`CATEGORIAS_EFETIVAS`), isolando ocorrências confirmadas e descartando ruídos como:
 
-A identificação das ocorrências deverá se apoiar em fontes verificáveis, como registros oficiais, notícias ou outras bases confiáveis.
+- Avisos preventivos e manutenções de canais.
+- Alertas meteorológicos sem impacto materializado.
+- Monitoramentos de rotina e boletins de maré.
 
-A ausência de uma notícia ou de um registro localizado não comprova, por si só, que não ocorreu alagamento. Os casos negativos deverão ser definidos por um procedimento confiável de rotulagem.
+A ausência de uma notícia ou de um registro localizado não comprova, por si só, que não ocorreu alagamento. Os casos negativos são definidos com base no cruzamento temporal rigoroso por data (`YYYY-MM-DD`).
 
 ## 4. Engenharia de atributos
 
-### 4.1. Script atual
+### 4.1. Scripts de processamento
 
-O processamento da precipitação está implementado em:
+O processamento está distribuído nos scripts localizados em `src/`:
 
-```text
-src/engenharia_atributos.py
-```
+- `src/engenharia_atributos.py`: processa a precipitação e calcula a chuva acumulada em janelas de três horas.
+- `src/mare.py`: processa e integra as medições de maré.
+- `src/integrar_base.py`: realiza a integração filtrada por data entre a base ambiental e os rótulos de alagamento efetivo.
 
-O script procura arquivos CSV dentro de `data/raw/cemaden/` e de suas subpastas, lê os registros, organiza as observações por estação e calcula atributos de precipitação acumulada.
-
-O resultado é salvo em:
+O resultado consolidado é salvo em:
 
 ```text
-data/processed/chuva_acumulada_3h.csv
+data/processed/base_integrada.csv
 ```
 
-O script utiliza caminhos relativos à raiz do projeto, evitando depender de um caminho específico do computador de quem executa o código.
+Os scripts utilizam caminhos relativos à raiz do projeto, evitando depender de um caminho específico do computador de quem executa o código.
 
 ### 4.2. Chuva acumulada em três horas
 
 O atributo de precipitação acumulada considera a janela temporal:
 
-\[
-(t-3h,\ t]
-\]
+$$
+(t - 3\,\text{h},\ t]
+$$
 
 Isso significa que são considerados os registros posteriores ao limite inicial da janela até o instante final, incluindo o instante final.
 
@@ -145,6 +150,7 @@ O arquivo processado contém as colunas originais e atributos adicionais.
 | `datahora_utc` | Data e hora interpretadas em UTC pelo processamento. |
 | `datahora_local` | Data e hora convertidas para o fuso local de Aracaju. |
 | `arquivo_origem` | Identificação do arquivo de origem do registro. |
+| `alagamento` | Indicador binário (0 ou 1) da ocorrência de alagamento efetivo. |
 
 ### 4.4. Critérios atuais de validação
 
@@ -156,13 +162,13 @@ A implementação utiliza critérios provisórios para identificar janelas com c
 
 Esses critérios são decisões metodológicas em avaliação. Eles não garantem, por si só, que todos os valores acumulados correspondam perfeitamente à precipitação real.
 
-**Importante:** uma janela inválida não significa que não houve chuva. Valores ausentes não devem ser substituídos automaticamente por zero.
+> **Importante:** uma janela inválida não significa que não houve chuva. Valores ausentes não devem ser substituídos automaticamente por zero.
 
-## 5. Resultados atuais do processamento
+## 5. Resultados atuais do processamento e integração
 
-Na execução verificada, o script reuniu **32.757 registros**, referentes a três estações pluviométricas.
+Na execução verificada, o script reuniu **32.757 registros**, referentes a três estações pluviométricas e dados integrados de maré.
 
-Segundo os critérios de validação atualmente implementados, os resultados foram:
+Segundo os critérios de validação atualmente implementados, os resultados ambientais foram:
 
 | Resultado | Quantidade | Proporção |
 |---|---:|---:|
@@ -180,9 +186,17 @@ Segundo os critérios de validação atualmente implementados, os resultados for
 
 A estação `280030802A` apresenta a maior proporção de janelas válidas, enquanto a estação `280030803A` apresenta a menor.
 
-Essa diferença de cobertura deve ser investigada antes da construção da base final. Os resultados representam a validade segundo os critérios atuais, e não a proporção de períodos com chuva ou alagamento.
+### Resultados da base integrada com filtragem efetiva
 
-Esses números correspondem à execução verificada e poderão mudar se os arquivos de entrada ou os critérios de validação forem modificados.
+Após a aplicação da filtragem rigorosa por ocorrências efetivas de alagamento, a base consolidada (`data/processed/base_integrada.csv`) apresenta:
+
+- **Total de registos na base:** 32.757
+- **Registos com alagamento efetivo (`alagamento = 1`):** 863 (2.63%)
+- **Datas únicas afetadas:** 13 dias com ocorrências reais confirmadas.
+
+Datas com alagamento efetivo mapeadas na base:
+
+`2025-01-11`, `2025-04-12`, `2025-04-15`, `2025-04-24`, `2025-05-07`, `2025-05-20`, `2025-06-14`, `2025-06-30`, `2026-02-08`, `2026-02-19`, `2026-03-01`, `2026-03-02` e `2026-03-05`.
 
 ## 6. Requisitos e execução
 
@@ -191,7 +205,7 @@ Esses números correspondem à execução verificada e poderão mudar se os arqu
 - Python instalado.
 - Git, caso o repositório seja obtido por clonagem.
 - Dependências registradas em `requirements.txt`.
-- Arquivos CSV do CEMADEN disponíveis nos diretórios esperados pelo script.
+- Arquivos CSV do CEMADEN e o arquivo Excel de ocorrências disponíveis nos diretórios esperados.
 
 ### 6.2. Abrir o projeto
 
@@ -225,35 +239,29 @@ Para verificar se existem dependências incompatíveis:
 python -m pip check
 ```
 
-### 6.5. Executar a engenharia de atributos
+### 6.5. Executar a engenharia de atributos e integração
 
 ```powershell
 python src\engenharia_atributos.py
+python src\mare.py
+python src\integrar_base.py
 ```
 
-O script deverá processar os arquivos encontrados e gerar:
+Os scripts deverão processar os arquivos encontrados e gerar as bases processadas em `data/processed/`.
 
-```text
-data/processed/chuva_acumulada_3h.csv
-```
+### 6.6. Conferir os arquivos gerados
 
-A execução depende da presença dos arquivos de entrada e das dependências necessárias.
-
-### 6.6. Conferir o arquivo gerado
-
-Para verificar se o arquivo existe:
+Para verificar se o arquivo integrado existe:
 
 ```powershell
-Test-Path "data\processed\chuva_acumulada_3h.csv"
+Test-Path "data\processed\base_integrada.csv"
 ```
 
 Para conferir as dimensões e as colunas do arquivo:
 
 ```powershell
-python -c "import pandas as pd; d = pd.read_csv('data/processed/chuva_acumulada_3h.csv'); print('Dimensões:', d.shape); print('Colunas:', d.columns.tolist())"
+python -c "import pandas as pd; d = pd.read_csv('data/processed/base_integrada.csv'); print('Dimensões:', d.shape); print('Colunas:', d.columns.tolist()); print('Soma alagamento:', d['alagamento'].sum())"
 ```
-
-Esses comandos permitem verificar a existência e a estrutura do resultado, mas não substituem a validação metodológica dos cálculos.
 
 ## 7. Divisão de responsabilidades
 
@@ -263,21 +271,21 @@ O projeto está dividido entre cinco integrantes.
 
 Responsável pelo processamento e pela preparação dos dados ambientais.
 
-Tarefas:
+**Tarefas:**
 
 - Organizar os dados brutos do CEMADEN.
 - Calcular a precipitação acumulada em três horas.
 - Documentar e revisar os critérios de validade das janelas.
 - Investigar lacunas e diferenças de cobertura entre as estações.
 - Obter e integrar os dados de maré.
-- Participar da construção da base integrada.
+- Participar da construção da base integrada e rotulagem efetiva.
 - Documentar as decisões metodológicas e as limitações da preparação dos dados.
 
 **Entrega esperada:** dados ambientais processados, documentação da metodologia e base preparada para integração com a variável-alvo.
 
 ### Integrante 2 — Regressão logística
 
-Tarefas:
+**Tarefas:**
 
 - Implementar o classificador de regressão logística.
 - Definir o pré-processamento necessário.
@@ -289,7 +297,7 @@ Tarefas:
 
 ### Integrante 3 — Árvore de decisão
 
-Tarefas:
+**Tarefas:**
 
 - Implementar o classificador de árvore de decisão.
 - Avaliar parâmetros como profundidade máxima e critérios de divisão.
@@ -301,7 +309,7 @@ Tarefas:
 
 ### Integrante 4 — Máquina de vetores de suporte (SVM)
 
-Tarefas:
+**Tarefas:**
 
 - Implementar o classificador SVM.
 - Definir o pré-processamento necessário, incluindo padronização quando apropriada.
@@ -313,7 +321,7 @@ Tarefas:
 
 ### Integrante 5 — Métricas e comparação estatística
 
-Tarefas:
+**Tarefas:**
 
 - Definir um protocolo comum de avaliação.
 - Calcular métricas de desempenho para os modelos.
@@ -326,7 +334,7 @@ Tarefas:
 
 ## 8. Construção da base integrada
 
-A base final deverá reunir atributos ambientais e uma variável-alvo que indique a ocorrência de alagamento.
+A base final reúne atributos ambientais e uma variável-alvo que indica a ocorrência de alagamento.
 
 Entre os atributos candidatos estão:
 
@@ -334,28 +342,26 @@ Entre os atributos candidatos estão:
 - Nível da maré no instante correspondente.
 - Outras variáveis ambientais ou temporais, caso existam dados confiáveis e justificativa metodológica.
 
-A variável-alvo deverá seguir critérios documentados:
+A variável-alvo segue critérios rigorosamente documentados:
 
-- `alagamento = 1`: ocorrência confirmada segundo o procedimento de rotulagem definido pelo grupo.
-- `alagamento = 0`: ausência de ocorrência estabelecida com base em fonte ou procedimento confiável.
-
-Casos sem evidência suficiente deverão permanecer sem rótulo ou ser tratados conforme um procedimento de análise previamente definido.
+- `alagamento = 1`: ocorrência confirmada exclusivamente em categorias de impacto efetivo (ex.: alagamentos registrados, vias interditadas, casas atingidas).
+- `alagamento = 0`: ausência de ocorrência efetiva estabelecida com base na rotulagem por data.
 
 ### Alinhamento temporal
 
-A integração deverá considerar a data e hora dos registros, a localização das estações e a resolução temporal das fontes.
+A integração considera a data e hora dos registros, a localização das estações e a resolução temporal das fontes.
 
-O grupo deverá documentar:
+O grupo documentou:
 
 - Qual instante representa cada observação.
-- Qual intervalo temporal será usado para associar as variáveis aos eventos.
-- Como serão tratados atrasos entre chuva, maré e ocorrência de alagamento.
-- Como serão tratados valores ausentes e registros duplicados.
-- Como será evitado o uso de informações futuras no momento da previsão.
+- Qual intervalo temporal é usado para associar as variáveis aos eventos.
+- Como são tratados atrasos entre chuva, maré e ocorrência de alagamento.
+- Como são tratados valores ausentes e registros duplicados.
+- Como é evitado o uso de informações futuras no momento da previsão.
 
 ## 9. Treinamento e avaliação dos modelos
 
-Os três classificadores deverão utilizar a mesma definição da variável-alvo, os mesmos atributos elegíveis e um protocolo de avaliação comparável.
+Os três classificadores devem utilizar a mesma definição da variável-alvo, os mesmos atributos elegíveis e um protocolo de avaliação comparável.
 
 ### Cuidados metodológicos
 
@@ -363,7 +369,7 @@ Os três classificadores deverão utilizar a mesma definição da variável-alvo
 - Considerar uma separação temporal se o objetivo for estimar o desempenho em períodos futuros.
 - Ajustar transformações e hiperparâmetros usando somente os dados de treinamento.
 - Aplicar padronização nos modelos que necessitam dela, sem utilizar informações do conjunto de teste.
-- Considerar o possível desequilíbrio entre as classes.
+- Considerar o possível desequilíbrio entre as classes (com os positivos representando cerca de 2.63% da base).
 - Avaliar os modelos no mesmo conjunto de teste.
 
 ### Métricas sugeridas
@@ -376,7 +382,7 @@ Os três classificadores deverão utilizar a mesma definição da variável-alvo
 | F1-score | Média harmônica entre precisão e revocação. |
 | Matriz de confusão | Quantifica verdadeiros e falsos positivos e negativos. |
 
-A acurácia não deve ser usada isoladamente, especialmente se houver desequilíbrio entre as classes. A métrica prioritária deverá considerar o objetivo da previsão e o custo dos diferentes tipos de erro.
+A acurácia não deve ser usada isoladamente, especialmente devido ao desequilíbrio entre as classes. A métrica prioritária deve considerar o objetivo da previsão e o custo dos diferentes tipos de erro.
 
 ## 10. Controle de versão e arquivos ignorados
 
@@ -394,16 +400,16 @@ data/processed/
 
 Essas regras impedem que o ambiente virtual, arquivos temporários, configurações locais e dados brutos ou processados sejam incluídos automaticamente em novos commits.
 
-Como os dados estão fora do controle de versão, cada integrante deverá obter os arquivos originais necessários para executar o processamento e gerar os resultados localmente.
+Como os dados estão fora do controle de versão, cada integrante deve obter os arquivos originais necessários para executar o processamento e gerar os resultados localmente.
 
-Antes de alterar as regras de exclusão, o grupo deverá combinar como compartilhará os dados necessários para reproduzir os experimentos.
+Antes de alterar as regras de exclusão, o grupo deve combinar como compartilhará os dados necessários para reproduzir os experimentos.
 
 Boas práticas:
 
 - Preservar os arquivos originais em `data/raw/`.
 - Armazenar os resultados derivados em `data/processed/`.
 - Não versionar ambientes virtuais.
-- Registrar mudanças de código com mensagens claras.
+- Registrar mudanças de código com mensagens claras (utilizando o termo padronizado "arquivo" em toda a base de código).
 - Manter o `requirements.txt` atualizado.
 - Não incluir chaves de API, credenciais ou informações confidenciais no repositório.
 - Documentar alterações nos critérios de processamento.
@@ -412,28 +418,24 @@ Boas práticas:
 
 ### Implementado
 
-- Organização dos arquivos brutos de precipitação do CEMADEN.
-- Script de engenharia de atributos em `src/engenharia_atributos.py`.
-- Cálculo de chuva acumulada em janelas de três horas.
-- Indicadores de validade e cobertura temporal das janelas.
-- Conversão dos horários para UTC e para o fuso local utilizado pelo processamento.
-- Geração de `data/processed/chuva_acumulada_3h.csv`.
-- Registro das dependências em `requirements.txt`.
-- Regras de exclusão de arquivos locais no `.gitignore`.
+- [x] Organização dos arquivos brutos de precipitação do CEMADEN, de maré e do Excel de ocorrências.
+- [x] Scripts de engenharia de atributos (`src/engenharia_atributos.py`, `src/mare.py`).
+- [x] Implementação da filtragem rigorosa por ocorrências efetivas de alagamento (`CATEGORIAS_EFETIVAS`).
+- [x] Script de integração automatizada gerando `data/processed/base_integrada.csv` com 863 registos positivos (2.63%).
+- [x] Padronização terminológica em português (termo "arquivo" utilizado consistentemente nos códigos).
+- [x] Geração de indicadores de validade, cobertura temporal e conversão de fusos horários.
+- [x] Registro das dependências em `requirements.txt`.
+- [x] Regras de exclusão de arquivos locais no `.gitignore`.
 
 ### Pendente
 
-- Confirmar a interpretação de `valorMedida` na documentação do CEMADEN.
-- Revisar e justificar os critérios de validade das janelas de três horas.
-- Investigar a cobertura reduzida da estação `280030803A`.
-- Obter e processar os dados de maré.
-- Organizar e verificar as fontes de registros de alagamentos.
-- Definir um procedimento confiável de rotulagem positiva e negativa.
-- Construir e validar a base integrada.
-- Implementar os modelos de classificação.
-- Definir o protocolo de avaliação.
-- Realizar a comparação dos modelos.
-- Documentar os resultados e as conclusões.
+- [ ] Confirmar a interpretação de `valorMedida` na documentação do CEMADEN.
+- [ ] Revisar e justificar os critérios de validade das janelas de três horas.
+- [ ] Investigar a cobertura reduzida da estação `280030803A`.
+- [ ] Implementar os modelos de classificação (Regressão Logística, Árvore de Decisão e SVM).
+- [ ] Definir o protocolo de avaliação.
+- [ ] Realizar a comparação dos modelos.
+- [ ] Documentar os resultados e as conclusões.
 
 ## 12. Limitações
 
@@ -441,7 +443,7 @@ A qualidade dos resultados depende da cobertura, da confiabilidade e da compatib
 
 O conjunto de precipitação atualmente processado contém três estações, cuja cobertura válida varia consideravelmente. Isso limita a representação espacial e temporal das condições de chuva.
 
-Além disso, os critérios de validação das janelas ainda precisam de confirmação metodológica. Os dados de maré e os rótulos de alagamento também precisam ser integrados e verificados.
+Além disso, os critérios de validação das janelas ainda precisam de confirmação metodológica. Os dados de maré e os rótulos de alagamento foram integrados com base em ocorrências documentadas, mas a ausência de registros em algumas fontes pode ocultar incidentes menores.
 
 Consequentemente, o desempenho dos modelos deverá ser interpretado considerando essas limitações. Os resultados experimentais não constituem, por si só, uma garantia de previsão operacional de alagamentos.
 
@@ -449,9 +451,9 @@ Consequentemente, o desempenho dos modelos deverá ser interpretado considerando
 
 Ao final, espera-se obter:
 
-- Uma base de dados ambientais integrada e documentada.
+- Uma base de dados ambientais integrada, limpa e documentada (`base_integrada.csv`).
 - Três modelos de classificação implementados e avaliados.
-- Uma comparação de desempenho baseada em métricas adequadas.
+- Uma comparação de desempenho baseada em métricas adequadas ao desequilíbrio das classes.
 - Uma análise das relações observadas entre precipitação, maré e alagamentos.
 - Uma discussão das limitações dos dados e da capacidade de generalização dos modelos.
 
